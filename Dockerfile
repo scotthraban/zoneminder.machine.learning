@@ -27,7 +27,7 @@ RUN	add-apt-repository -y ppa:iconnor/zoneminder-$ZM_VERS && \
 	apt-get update && \
 	apt-get -y upgrade -o Dpkg::Options::="--force-confold" && \
 	apt-get -y dist-upgrade -o Dpkg::Options::="--force-confold" && \
-	apt-get -y install apache2 mariadb-server && \
+	apt-get -y install apache2 && \
 	apt-get -y install ssmtp mailutils net-tools wget sudo make cmake gcc && \
 	apt-get -y install php$PHP_VERS php$PHP_VERS-fpm libapache2-mod-php$PHP_VERS php$PHP_VERS-mysql php$PHP_VERS-gd && \
 	apt-get -y install libcrypt-mysql-perl libyaml-perl libjson-perl libavutil-dev ffmpeg && \
@@ -35,9 +35,7 @@ RUN	add-apt-repository -y ppa:iconnor/zoneminder-$ZM_VERS && \
 	apt-get -y install zoneminder
 	
 FROM build1 as build2
-RUN	rm /etc/mysql/my.cnf && \
-	cp /etc/mysql/mariadb.conf.d/50-server.cnf /etc/mysql/my.cnf && \
-	adduser www-data video && \
+RUN	adduser www-data video && \
 	a2enmod php$PHP_VERS proxy_fcgi ssl rewrite expires headers && \
 	a2enconf php$PHP_VERS-fpm zoneminder && \
 	echo "extension=apcu.so" > /etc/php/$PHP_VERS/mods-available/apcu.ini && \
@@ -79,22 +77,12 @@ RUN	cd /root && \
 	chown -R www-data:www-data /usr/share/zoneminder/ && \
 	sed -i "s|^#Mutex file|Mutex file|" /etc/apache2/apache2.conf && \
 	echo "ServerName localhost" >> /etc/apache2/apache2.conf && \
-	sed -i "s|^;date.timezone =.*|date.timezone = ${TZ}|" /etc/php/$PHP_VERS/apache2/php.ini && \
-	service mysql start && \
-	mysql -uroot -e "grant all on zm.* to 'zmuser'@localhost identified by 'zmpass';" && \
-	mysqladmin -uroot reload && \
-	mysql -sfu root < "mysql_secure_installation.sql" && \
-	rm mysql_secure_installation.sql && \
-	mysql -sfu root < "mysql_defaults.sql" && \
-	rm mysql_defaults.sql
+	sed -i "s|^;date.timezone =.*|date.timezone = ${TZ}|" /etc/php/$PHP_VERS/apache2/php.ini
 
 FROM build4 as build5
 RUN	mv /root/zoneminder /etc/init.d/zoneminder && \
 	chmod +x /etc/init.d/zoneminder && \
-	service mysql restart && \
-	sleep 5 && \
-	service apache2 start && \
-	service zoneminder start
+	service apache2 start
 
 FROM build5 as build6
 RUN	systemd-tmpfiles --create zoneminder.conf && \

@@ -19,12 +19,6 @@ echo "Copying zm.conf to config folder"
 mv /root/zm.conf /config/conf/zm.default
 cp /etc/zm/conf.d/README /config/conf/README
 
-# Copy custom 99-mysql.conf to /etc/zm/conf.d/
-if [ -f /config/conf/99-mysql.conf ]; then
-	echo "Copy custom 99-mysql.conf to /etc/zm/conf.d/"
-	cp /config/conf/99-mysql.conf /etc/zm/conf.d/99-mysql.conf
-fi
-
 # Handle the zmeventnotification.ini file
 if [ -f /root/zmeventnotification/zmeventnotification.ini ]; then
 	echo "Moving zmeventnotification.ini"
@@ -120,15 +114,6 @@ else
 	echo "Using existing ssmtp folder"
 fi
 
-# Move mysql database if it doesn't exit
-if [ ! -d /config/mysql/mysql ]; then
-	echo "Moving mysql to config folder"
-	rm -rf /config/mysql
-	cp -p -R /var/lib/mysql /config/
-else
-	echo "Using existing mysql database folder"
-fi
-
 # files and directories no longer exposed at config.
 rm -rf /config/perl5/
 rm -rf /config/zmeventnotification/
@@ -171,10 +156,6 @@ ln -sf /config/es_rules.json /etc/zm/es_rules.json
 rm -r /etc/ssmtp 
 ln -s /config/ssmtp /etc/ssmtp
 
-# mysql
-rm -r /var/lib/mysql
-ln -s /config/mysql /var/lib/mysql
-
 # Set ownership for unRAID
 PUID=${PUID:-99}
 PGID=${PGID:-100}
@@ -193,8 +174,6 @@ usermod -d /config nobody
 usermod -a -G mail www-data
 
 # Change some ownership and permissions
-chown -R mysql:mysql /config/mysql
-chown -R mysql:mysql /var/lib/mysql
 chown -R $PUID:$PGID /config/conf
 chmod 777 /config/conf
 chmod 666 /config/conf/*
@@ -499,15 +478,9 @@ fi
 
 mv /root/zmeventnotification/setup.py /root/setup.py 2>/dev/null
 
-# Clean up mysql log files to insure mysql will start
-rm -f /config/mysql/ib_logfile* 2>/dev/null
-
 echo "Starting services..."
 service apache2 start
 if [ "$NO_START_ZM" != "1" ]; then
-	# Start mysql
-	sleep 3
-	service mysql start
 
 	# Update the database if necessary
 	zmupdate.pl -nointeractive
@@ -515,5 +488,5 @@ if [ "$NO_START_ZM" != "1" ]; then
 
 	service zoneminder start
 else
-	echo "MySql and Zoneminder not started."
+	echo "Zoneminder not started."
 fi
